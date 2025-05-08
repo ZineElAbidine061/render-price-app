@@ -1,31 +1,48 @@
 import streamlit as st
+import requests
 import pandas as pd
 import plotly.graph_objects as go
+from datetime import datetime
 
-# Titre de la page
-st.set_page_config(page_title="Évolution du prix RENDER", page_icon="📈", layout="wide")
+# --- CONFIG ---
+TOKEN_ID = 'render-token'
+CURRENCY = 'usd'
+DAYS = 30
+
+# --- Titre ---
 st.title("📈 Évolution du prix de RENDER-TOKEN")
-st.markdown("Données mises à jour sur les **30 derniers jours** via l’API CoinGecko.")
+st.markdown(f"**Données mises à jour sur les {DAYS} derniers jours via l’API CoinGecko.**")
 
-# Chargement des données
-df = pd.read_csv("render_price_data_30d.csv")  # Assure-toi que ce fichier est bien dans le repo
+# --- Requête API ---
+url = f"https://api.coingecko.com/api/v3/coins/{TOKEN_ID}/market_chart"
+params = {
+    'vs_currency': CURRENCY,
+    'days': DAYS
+}
+response = requests.get(url, params=params)
+data = response.json()
 
-# Affichage du graphique
+# --- Traitement des données ---
+prices = data['prices']
+df = pd.DataFrame(prices, columns=['Timestamp', 'Price'])
+df['Date'] = pd.to_datetime(df['Timestamp'], unit='ms')
+df.set_index('Date', inplace=True)
+
+# --- Affichage interactif ---
 fig = go.Figure()
 fig.add_trace(go.Scatter(
-    x=df['Date'],
+    x=df.index,
     y=df['Price'],
-    mode='lines+markers',
-    name='RENDER / USD',
-    line=dict(color='blue')
+    mode='lines',
+    name=f'{TOKEN_ID.upper()} / {CURRENCY.upper()}',
+    line=dict(color='royalblue', width=2)
 ))
-
 fig.update_layout(
-    title="Prix du token RENDER en USD",
-    xaxis_title="Date",
-    yaxis_title="Prix (USD)",
+    title=f"Évolution du prix de {TOKEN_ID.upper()} (sur {DAYS} jours)",
+    xaxis_title='Date',
+    yaxis_title=f"Prix ({CURRENCY.upper()})",
     template="plotly_dark",
-    hovermode="x unified"
+    height=500
 )
 
 st.plotly_chart(fig, use_container_width=True)
